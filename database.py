@@ -7,13 +7,18 @@ import chromadb
 from chromadb.config import Settings
 
 from langchain_community.document_loaders import PDFPlumberLoader, TextLoader
-from langchain.text_splitter import CharacterTextSplitter
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
+from dotenv import load_dotenv
+import os
 
-CHROMA_PATH = "./chroma_db"
-CHUNK_SIZE = 512
-CHUNK_OVERLAP = 64
-COLLECTION = 'research_docs'
+load_dotenv()
+
+CHROMA_PATH = os.environ['CHROMA_PATH']
+CHUNK_SIZE = int(os.environ['CHUNK_SIZE'])
+CHUNK_OVERLAP = int(os.environ['CHUNK_OVERLAP'])
+COLLECTION = os.environ['COLLECTION']
+
 
 def get_chroma_collection(collection_name: str) -> chromadb.Collection:
     client = chromadb.PersistentClient(
@@ -36,9 +41,10 @@ def ingest_file(file_path: Path, collection: chromadb.Collection) -> int:
     """Chunk, embed, and upsert one document. Returns number of chunks stored."""
     print(f"  ↳ {file_path.name}", end=" ", flush=True)
 
-    doc_loader: Dict[str, type[TextLoader] | type[PDFPlumberLoader]] = {'.txt': TextLoader,
-                                                                        '.md': TextLoader,
-                                                                        '.pdf': PDFPlumberLoader}
+    doc_loader: Dict[str, type[TextLoader] | type[PDFPlumberLoader]] = {
+        '.txt': TextLoader,
+        '.md': TextLoader,
+        '.pdf': PDFPlumberLoader}
 
     try:
         documents = doc_loader[file_path.suffix](file_path).load()
@@ -46,7 +52,7 @@ def ingest_file(file_path: Path, collection: chromadb.Collection) -> int:
         print(
             f"Invalid path. Expected file of type: {tuple(doc_loader.keys())}. Got {file_path.suffix}")
 
-    text_splitter = CharacterTextSplitter(
+    text_splitter = RecursiveCharacterTextSplitter(
         chunk_size=CHUNK_SIZE, chunk_overlap=CHUNK_OVERLAP)
     chunked_documents = text_splitter.split_documents(documents)
 
@@ -81,9 +87,12 @@ def ingest_files(files: List[str], collection_name: str) -> None:
 
     total_chunks = 0
     print(
-        f"\nIngesting {len(filepaths)} file(s) into collection '{collection_name}':")
-    for f in filepaths:
-        total_chunks += ingest_file(f, collection)
+        f"Ingesting {len(filepaths)} file(s) into collection '{collection_name}':")
+    for file in filepaths:
+        if not file.exists():
+            print(f"\t{file} does not exist")
+            continue
+        total_chunks += ingest_file(file, collection)
 
     print(f"\nDone. {total_chunks} chunks stored in '{CHROMA_PATH}'.")
 
@@ -99,9 +108,9 @@ def view_files():
     print("Included files in DB:\n---------------------", *sorted(names), sep='\n')
 
 
-def delete_files(files: Path | str):
+def delete_files(files: list[Path | str]):
     collection = get_chroma_collection(COLLECTION)
-    collection.delete(where={"filename": {"$in": files}})
+    collection.delete(where={"filename": {"$in": [str(file) for file in files]}})
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -123,6 +132,6 @@ Usage:
     if args.add_files:
         ingest_files(args.add_files, COLLECTION)
     elif args.remove_files:
-        pass
+        delete_files(args.remove_files)
     elif args.view_files:
         view_files()

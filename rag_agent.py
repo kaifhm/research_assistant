@@ -1,153 +1,89 @@
 from langchain_ollama import ChatOllama
-from langchain_core.messages import HumanMessage, AIMessage, SystemMessage, ToolMessage
+from langchain_core.messages import (
+    BaseMessage,
+    HumanMessage,
+    AIMessage,
+    SystemMessage,
+    ToolMessage
+)
 
-import requests
+from tools import TOOLS
 
-import chromadb
-from chromadb.config import Settings
-from chromadb.api.types import OneOrMany, Embedding
-from chromadb.utils.embedding_functions.onnx_mini_lm_l6_v2 import ONNXMiniLM_L6_V2
-
-import json
-
-from typing import Any, Sequence
-
-CHROMA_PATH = "./chroma_db"
-EMBED_MODEL = "qwen2.5:7b"
-MAX_ITERATIONS = 6
+from dotenv import load_dotenv
+import os
 
 
-with open('tools.json') as file:
-    TOOLS = json.load(file)
+# DEBUG
+import logging
+LOGGING_LEVEL = os.getenv('LOGGING_LEVEL', 'INFO')
+logging.basicConfig(filename="rag_agent_logs.log",
+                    filemode="a",
+                    format="[{levelname}] {asctime} :({name}): {message}",
+                    level=LOGGING_LEVEL,
+                    datefmt="%Y-%m-%d %H:%M:%s", style="{")
+# DEBUG END
 
 
-SYSTEM_PROMPT = """You are an expert scientific research assistant with access to
-a curated ChromaDB knowledge base of scientific papers.
+load_dotenv()
 
-Behaviour rules:
-1. Reason briefly before deciding whether retrieval is necessary.
-2. Retrieve documents only when the answer genuinely requires content from the
-   papers (specific findings, methods, data, citations).
-3. You may call retrieve_documents more than once with different queries if the
-   first retrieval was insufficient.
-4. When synthesising retrieved passages, always cite the source filename.
-5. If the retrieved content is not relevant, say so rather than hallucinating.
-6. For conversational or general-knowledge questions, answer directly without
-   retrieval.
-"""
-
-
-def search_web(inputs: dict) -> str:
-    r = requests.get(f"https://duckduckgo.com/?q={inputs['term']}&ia=web")
-    if r.status_code == 200:
-        return r.text
-    return "Could'nt find anything"
-
-
-class Retriever:
-    def __init__(self, collection_name: str):
-        client = chromadb.PersistentClient(
-            path=CHROMA_PATH,
-            settings=Settings(anonymized_telemetry=False),
-        )
-        self.collection = client.get_collection(collection_name)
-        print(f"[Retriever] Connected to '{collection_name}' "
-              f"({self.collection.count()} chunks)")
-        self.embedder = ONNXMiniLM_L6_V2()
-
-    def search(self, inputs: dict) -> str:
-
-        query, top_k = inputs['query'], inputs.get('top_k', 5)
-        query = query if isinstance(query, list) else [query]
-        embedding: OneOrMany[Embedding] = self.embedder(query)
-        n_results: int = min(top_k, self.collection.count())
-        results = self.collection.query(
-            query_embeddings=embedding,
-            n_results=n_results
-        )
-
-        hits = [
-            {
-                "text": doc,
-                "source": meta.get("filename", "unknown"),
-                "chunk": meta.get("chunk_index"),
-                "similarity": round(1 - dist, 4),
-            } for (m, d, di) in zip(results["metadatas"], # type: ignore
-                                    results["documents"], # type: ignore
-                                    results["distances"]) # type: ignore
-                for (meta, doc, dist) in zip(m, d, di)
-        ]
-        
-        if not hits:
-            return "No relevant documents found."
-        lines = [f"[Retrieved {len(hits)} chunk(s) for query: '{inputs['query']}']"]
-        for h in hits:
-            lines.append(
-                f"\n--- source: {h['source']} "
-                f"| similarity: {h['similarity']} ---\n{h['text']}"
-            )
-        return "\n".join(lines)
-
+MODEL = os.environ['MODEL']
+SYSTEM_PROMPT = os.environ['SYSTEM_PROMPT']
+MAX_ITERATIONS = int(os.environ['MAX_ITERATIONS'])
 
 class RAGAgent:
-    def __init__(self,
-                 collection: str,
-                 tools_description: Sequence[dict[str, Any]]):
-        self.retriever = Retriever(collection)
-        self.client = ChatOllama(model=EMBED_MODEL).bind_tools(tools_description)
-        self.history: list[dict] = []
+    def __init__(self, tools) -> None:
+        self.tools = {tool.name: tool for tool in tools}
+        self.llm = ChatOllama(model=MODEL).bind_tools(tools)
+        self.history: list[BaseMessage] = [SystemMessage(SYSTEM_PROMPT)]
+        logging.info("Agent set up successfully")
 
-    def _run_tool(self, name: str, inputs: dict) -> str:
-        if name == "retrieve_documents":
-            return self.retriever.search(inputs)
-            
-        if name == "search_web":
-            return search_web(inputs)
-        return f"Unknown tool: {name}"
+    def _run_tool(self, tool_calls) -> list[ToolMessage]:
+        tool_results = []
+        for tool in tool_calls:
+            tool_name, tool_args = tool['name'], tool['args']
+            logging.info(f"Calling tool {tool_name}({(tool_args)})")
+            try:
+                tool_result = self.tools[tool_name].func(**tool_args)
+            except Exception as e:
+                logging.error(e)
+            tool_results.append(ToolMessage(content=tool_result, tool_call_id=tool['id']))
+        return tool_results
 
-    def ask(self, user_message: str) -> str:
-        self.history.append({"role": "user", "content": user_message})
-        messages = list(self.history)
+    def ask(self, user_message: str):
+        logging.info("Control over to AI.")
+        self.history.append(HumanMessage(content=user_message))
+        messages = self.history.copy()
+        new_messages_index = len(messages)
+        for i in range(MAX_ITERATIONS):
+            logging.debug(f"Iteration {i}. {len(messages)=}, {new_messages_index=}")
+            ai_message = AIMessage("")
 
-        for _ in range(MAX_ITERATIONS):
-            lc_messages = [SystemMessage(content=SYSTEM_PROMPT)] + [
-                HumanMessage(content=m["content"]) if m["role"] == "user"
-                else AIMessage(content=m["content"]) if m['role'] == 'assistant'
-                else ToolMessage(content=m['content'], tool_call_id=m['tool_call_id'])
-                for m in messages
-            ]
-            response = self.client.invoke(lc_messages)
+            tools_to_use = []
+            for ai_msg_chunk in self.llm.stream(messages):
+                if ai_msg_chunk.tool_calls:
+                    logging.info(f"Tool detected: {ai_msg_chunk.tool_calls}.")
+                    tools_to_use.extend(ai_msg_chunk.tool_calls)
+                ai_message.content += str(ai_msg_chunk.content)
+                yield ai_msg_chunk.content
 
-            assistant_content = response.content
-            messages.append(
-                {"role": "assistant", "content": assistant_content})
-            
-            if not response.tool_calls: # pyright: ignore[reportAttributeAccessIssue]
-                self.history.append(
-                    {"role": "assistant", "content": assistant_content})
-                return assistant_content # pyright: ignore[reportReturnType]
+            logging.debug(f"AI message is {ai_message.content}. Tools to use: {[tool['name'] for tool in tools_to_use]}")
+            if ai_message.content:
+                messages.append(ai_message)
+                break
 
+            if tools_to_use:
+                tool_messages = self._run_tool(tools_to_use)
+                messages.extend(tool_messages)
 
-            for block in response.tool_calls: # pyright: ignore[reportAttributeAccessIssue]
-                if block['type'] != "tool_call":
-                    continue
-                print(
-                    f"  [Agent → tool] {block['name']}({json.dumps(block['args'])})")
-                result_text = self._run_tool(block['name'], block['args'])
-
-                messages.append(
-                    {"role": "tool_call", "content": result_text, "tool_call_id": block['id']})
-
-        return "Max iterations reached without a final answer."
+        self.history.extend([m for m in messages[new_messages_index:] if isinstance(m, AIMessage)])
+        
 
     def chat(self):
-        print("\n🔬  Scientific RAG Agent ready. Type 'quit' to exit.\n")
-        red = "\033[31m"
-        green = "\033[32m"
-        end = "\033[0m"
+        print("\n🔬  Scientific RAG Agent ready. Type 'quit' to exit.")
+        red, green, reset = "\033[31m", "\033[32m", "\033[0m"
         while True:
             try:
-                user_input = input(f"{green}You{end}: ").strip()
+                user_input = input(f"{green}\nYou{reset}: ").strip()
             except EOFError:
                 print("\nGoodbye!")
                 break
@@ -158,11 +94,13 @@ class RAGAgent:
             if user_input.lower() in {"quit", "exit", "q"}:
                 print("Goodbye!")
                 break
-            answer = self.ask(user_input)
-            print(f"\n{red}Assistant{end}: {answer}\n")
+            print(f"\n{red}Assistant{reset}: ", sep='', end='')
+            for message_chunk in self.ask(user_input):
+                print(message_chunk, sep='', end='', flush=True)
+            print()
 
 
 if __name__ == "__main__":
 
-    agent = RAGAgent(collection='research_docs', tools_description=TOOLS)
+    agent = RAGAgent(tools=TOOLS)
     agent.chat()

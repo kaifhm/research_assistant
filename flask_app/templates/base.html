@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='base.css') }}">
+    <title>{% block title %}{{ title }}{% endblock %}</title>
+</head>
+<body>
+    <div class="main">
+        <nav>
+            <ul>
+                <a href="{{ url_for('new_chat') }}"><li>New Chat</li></a>
+                <li>Search</li>
+                <li></li>
+                <li></li>
+                <li></li>
+            </ul>
+            <small>Chats</small>
+            <ul>
+                {% for chat in chats %}
+                <a href="{{ url_for('chat_get', convo_id=chat.id) }}">
+                    <li class="chat">{{ chat.id }}</li>
+                </a>
+                {% endfor %}
+            </ul>
+        </nav>
+        <main>
+        {% block main %}
+        {% endblock %}
+        </main>
+    </div>
+</body>
+</html>

@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block main %}
+<div class="input">
+    <div class="messages-screen">
+        <div class="messages" id="messages">
+            {% for message in messages %}
+            <p class="message">{{ message.content }}</p>
+            {% endfor %}
+        </div>
+        <form action="{{ url_for('chat_post', convo_id=convo_id) }}" id="form" method="POST">
+            <textarea name="user_message" placeholder="What are you looking for?"></textarea>
+            <button type="submit" id="submit-button"> \> </button>
+        </form>
+    </div>
+</div>
+<script src="{{ url_for('static', filename='ask_message.js') }}"></script>
+{% endblock %}

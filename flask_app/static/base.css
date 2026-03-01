@@ -1,0 +1,24 @@
+*, *::after, *::before {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    height: 100%;
+}
+
+.main {
+    display: flex;
+    flex-direction: row;
+}
+
+main {
+    
+    width: 100%;
+}
+
+main textarea {
+    position: sticky;
+    bottom: 0;
+}

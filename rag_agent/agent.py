@@ -34,7 +34,6 @@ class RAGAgent:
     def __init__(self, tools) -> None:
         self.tools = {tool.name: tool for tool in tools}
         self.llm = ChatOllama(model=MODEL).bind_tools(tools)
-        self.history: list[BaseMessage] = [SystemMessage(SYSTEM_PROMPT)]
         logger.info("Agent set up successfully")
 
     def _run_tool(self, tool_calls) -> list[ToolMessage]:
@@ -49,10 +48,9 @@ class RAGAgent:
             tool_results.append(ToolMessage(content=tool_result, tool_call_id=tool['id']))
         return tool_results
 
-    def ask(self, user_message: str):
+    def ask(self, convo_history: list[BaseMessage]):
         logger.info("Control over to AI.")
-        self.history.append(HumanMessage(content=user_message))
-        messages = self.history.copy()
+        messages = convo_history.copy()
         new_messages_index = len(messages)
         for i in range(MAX_ITERATIONS):
             logger.debug(f"Iteration {i}. {len(messages)=}, {new_messages_index=}")
@@ -75,12 +73,13 @@ class RAGAgent:
                 tool_messages = self._run_tool(tools_to_use)
                 messages.extend(tool_messages)
 
-        self.history.extend([m for m in messages[new_messages_index:] if isinstance(m, AIMessage)])
+        convo_history.extend([m for m in messages[new_messages_index:] if isinstance(m, AIMessage)])
         
 
     def chat(self):
         print("\n🔬  Scientific RAG Agent ready. Type 'quit' to exit.")
         red, green, reset = "\033[31m", "\033[32m", "\033[0m"
+        history: list[BaseMessage] = [SystemMessage(SYSTEM_PROMPT)]
         while True:
             try:
                 user_input = input(f"{green}\nYou{reset}: ").strip()
@@ -95,7 +94,8 @@ class RAGAgent:
                 print("Goodbye!")
                 break
             print(f"\n{red}Assistant{reset}: ", sep='', end='')
-            for message_chunk in self.ask(user_input):
+            history.append(HumanMessage(user_input))
+            for message_chunk in self.ask(history):
                 print(message_chunk, sep='', end='', flush=True)
             print()
 

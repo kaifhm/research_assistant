@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}{{ title if title else "LLMChat" }}{% endblock %}
+{% block main %}
+<div class="input">
+    <div class="messages-screen">
+        <div class="messages" id="messages">
+        </div>
+        <form action="{{ url_for('home_post') }}" id="form" method="POST">
+            <textarea name="user_message" placeholder="What are you looking for?"></textarea>
+            <button type="submit" id="submit-button"> \> </button>
+        </form>
+    </div>
+</div>
+{% endblock %}

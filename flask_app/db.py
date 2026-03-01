@@ -1,0 +1,39 @@
+from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy.sql import func
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from sqlalchemy import ForeignKey, Text, CheckConstraint, func, UUID
+
+from datetime import datetime
+from uuid import uuid4, UUID as pyUUID
+from typing import List
+
+
+class Base(DeclarativeBase):
+    pass
+
+db = SQLAlchemy(
+    model_class=Base,
+)
+
+
+class Conversation(db.Model):
+
+    id: Mapped[pyUUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    created_at: Mapped[datetime] = mapped_column(default=func.now())
+    messages: Mapped[List['Message']] = relationship(back_populates="conversation")
+
+    def __repr__(self) -> str:
+        return f'Conversation(id="{self.id}", created_at={self.created_at}")'
+
+class Message(db.Model):
+    id: Mapped[int] = mapped_column(primary_key=True, unique=True, autoincrement=True)
+    conversation: Mapped[Conversation] = relationship(back_populates="messages")
+    conversation_id: Mapped[int] = mapped_column(ForeignKey('conversation.id'), nullable=False)
+    content: Mapped[str] = mapped_column(Text)
+    role: Mapped[str] = mapped_column(CheckConstraint("role IN ('user', 'human', 'assistant', 'ai', 'system')"), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(default=func.now())
+
+    def __repr__(self) -> str:
+        return f'Message(id="{self.id}", convo_id="{self.conversation_id}", \
+                message="{self.content[:10]}{'...' if len(self.content) > 10 else ''}\"\
+                    role="{self.role}", created_at={self.created_at})'

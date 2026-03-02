@@ -2,23 +2,86 @@
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+    font-family: Roboto;
 }
 
 body {
-    height: 100%;
-}
-
-.main {
+    height: 100vh;
     display: flex;
     flex-direction: row;
 }
 
-main {
-    
-    width: 100%;
+nav {
+    max-width: min(250px, 30%);
+    min-width: 250px;
+    background-color: #161617;
+    color: #d2d2d2;
+    font-size: 11pt;
+    overflow-x: clip;
 }
 
-main textarea {
-    position: sticky;
-    bottom: 0;
+nav a {
+    color: #eeeeee;
+    text-decoration: none;
+}
+
+nav small{
+    font-size: 9pt;
+}
+
+main {
+    width: 100%;
+    position: relative;
+}
+
+.chat-window {
+    height: 100%;
+}
+
+.messages-screen {
+    overflow-y: scroll;
+    padding: 0 calc((100% - max(600px, 30%))/2 + 2*3px);
+    height: 100%;
+    left: 0;
+    right: 0;
+    margin: 0 auto;
+}
+
+.message {
+    margin-bottom: 5px;
+    padding: 3px;
+}
+
+.human-message {
+    margin-left: auto;
+    max-width: 80%;
+    width: fit-content;
+}
+
+main form {
+    position: absolute;
+    height: fit-content;
+    overflow: clip;
+    width:  max(600px, 30%);
+    margin: auto;
+    left: 0;
+    right: 0;
+    bottom: 25px;
+}
+
+form > div {
+    padding: 8px;
+    width:  100%;
+    max-height: 400px;
+    overflow: scroll;
+    border-radius: 10px;
+    background-color: white;
+    border: 2px solid lightgrey;
+    border-bottom: white;
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+form > div[contenteditable] {
+  outline: none;
 }

@@ -1,11 +1,18 @@
-from flask import Flask, render_template, url_for, request, redirect, Response, stream_with_context
+from flask import (
+    Flask,
+    render_template,
+    url_for,
+    request,
+    redirect,
+    Response,
+    stream_with_context,
+)
 from flask_app.db import db, Base, Conversation, Message
-from sqlalchemy import create_engine, select
+from sqlalchemy import create_engine
 
 from rag_agent import RAGAgent, TOOLS
 
 from uuid import UUID
-
 from dotenv import load_dotenv
 import os
 
@@ -20,7 +27,7 @@ app.config['SECRET_KEY'] = os.environ['FLASK_SECRET_KEY']
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ['SQLALCHEMY_DATABASE_URI']
 
 agent = RAGAgent(TOOLS)
-SYSTEM_PROMPT = os.getenv('SYSTEM_PROMPT')
+SYSTEM_PROMPT = os.getenv('SYSTEM_PROMPT', 'You are an assistant. Talk to and help the user')
 
 db.init_app(app)
 
@@ -34,14 +41,27 @@ def home_post():
     user_message = request.form['user_message']
     chats = db.session.execute(db.select(Conversation)).scalars()
     convo = Conversation()
-    message = Message(content=user_message, role="ai")
+    message = Message(content=user_message, role="human")
     system_msg = Message(content=SYSTEM_PROMPT, role="system")
     convo.messages.extend([system_msg, message])
-    db.session.add_all([convo, system_msg, message])
+
+    title: str = "".join(agent.ask(
+        [ # type: ignore
+            {'role': 'system', 'content': (f'<user_message> {user_message} </user_message>. '
+                                           'This is the first message in a new conversation. '
+                                           'Generate a title for this conversation. Do not use '
+                                           'any tools. Keep the title short and simple. '
+                                           'Do not say Title')},
+        ]
+    ))
+    convo.title = title.removeprefix('Title:').strip()
+
+    # convo.messages.extend([system_msg, message])
+    db.session.add(convo)
     db.session.commit()
 
     return redirect(url_for("chat_get", convo_id=convo.id),
-                    Response=Response(render_template("chat.html", title="Chatting",
+                    Response=Response(render_template("chat.html", title=title, # type: ignore
                                                       chats=chats,
                                                       messages=[user_message])))
 
@@ -56,23 +76,20 @@ def chat_get(convo_id):
 
     messages = db.session.execute(db.select(Message)
                 .filter(Message.conversation_id == convo_id, Message.role.in_(['human', 'user', 'ai', 'assistant'])) \
-                    .order_by(Message.created_at.asc()) 
-                        .limit(10)).scalars()
+                    .order_by(Message.created_at.asc())).scalars() # Implement lazy loading messages
+    
+        # return render_template("chat.html", messages=messages, chats=chats, convo_id=convo_id, new_convo=True) # Stream 
+
     return render_template("chat.html", messages=messages, chats=chats, convo_id=convo_id)
 
 
-@stream_with_context
+@stream_with_context # type: ignore
 def stream_ai_message(messages: list[dict], convo_id: str, last_message: Message):
 
     captured_data = []
 
-    def some_dummy_text():
-        import secrets, time
-        for _ in range(20):
-            time.sleep(0.4)
-            yield secrets.token_hex(4)
     try:
-        for message_chunk in agent.ask(messages):
+        for message_chunk in agent.ask(messages): # pyright: ignore[reportArgumentType]
             captured_data.append(message_chunk)
             yield message_chunk
     except (BrokenPipeError, IOError, GeneratorExit):
@@ -82,8 +99,7 @@ def stream_ai_message(messages: list[dict], convo_id: str, last_message: Message
         return ""
 
     full_message = "".join(captured_data)
-    print(full_message)
-    ai_message = Message(content=full_message, role="ai", conversation_id=convo_id)
+    ai_message = Message(content=full_message, role="ai", conversation_id=convo_id) # type: ignore
     db.session.add(ai_message)
     db.session.commit()
 
@@ -93,20 +109,10 @@ def format_flask_messages(messages: list[Message]) -> list[dict]:
 
 @app.post('/chat/<string:convo_id>/')
 def chat_post(convo_id):
-    # print(request.form)
-    # print(request.form['user_message'])
     user_message = request.form['user_message']
     message = Message(content=user_message, role="human", conversation_id=convo_id)
     db.session.add(message)
     db.session.commit()
     chat_messages = db.session.execute(db.select(Message).filter(Message.conversation_id == convo_id)).scalars().all()
-    return Response(stream_ai_message(format_flask_messages(chat_messages),
+    return Response(stream_ai_message(format_flask_messages(chat_messages), # pyright: ignore[reportArgumentType]
                                       convo_id=convo_id, last_message=message))
-
-@app.get('/new_chat/')
-def new_chat():
-    new_convo = Conversation()
-    db.session.add(new_convo)
-    db.session.commit()
-    print(new_convo.id)
-    return redirect(url_for('chat_get', convo_id=new_convo.id))

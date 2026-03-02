@@ -7,20 +7,19 @@
     <title>{% block title %}{{ title }}{% endblock %}</title>
 </head>
 <body>
-    <div class="main">
         <nav>
             <ul>
-                <a href="{{ url_for('new_chat') }}"><li>New Chat</li></a>
+                <a href="{{ url_for('home') }}"><li>New Chat</li></a>
                 <li>Search</li>
                 <li></li>
                 <li></li>
                 <li></li>
             </ul>
             <small>Chats</small>
-            <ul>
+            <ul class="chats">
                 {% for chat in chats %}
                 <a href="{{ url_for('chat_get', convo_id=chat.id) }}">
-                    <li class="chat">{{ chat.id }}</li>
+                    <li class="chat">{{ chat.title if chat.title else chat.id }}</li>
                 </a>
                 {% endfor %}
             </ul>
@@ -29,6 +28,5 @@
         {% block main %}
         {% endblock %}
         </main>
-    </div>
 </body>
 </html>

@@ -1,14 +1,26 @@
 {% extends "base.html" %}
 {% block title %}{{ title if title else "LLMChat" }}{% endblock %}
 {% block main %}
-<div class="input">
+<div class="chat-window">
     <div class="messages-screen">
         <div class="messages" id="messages">
         </div>
-        <form action="{{ url_for('home_post') }}" id="form" method="POST">
-            <textarea name="user_message" placeholder="What are you looking for?"></textarea>
-            <button type="submit" id="submit-button"> \> </button>
-        </form>
     </div>
+    <form action="{{ url_for('home_post') }}" id="form" method="POST">
+        <div name="user_message" contenteditable="true" placeholder="What are you looking for?"></div>
+        <button type="submit" id="submit-button"> 📨 </button>
+    </form>
+    <script>
+        const submitEl = document.getElementById('submit-button');
+        const userinputEl = document.querySelector('div[name="user_message"]')
+        const form = document.getElementById('form')
+        submitEl.addEventListener('click', event => {
+            const inputEl = document.createElement('input')
+            inputEl.name = "user_message"
+            inputEl.style.display = "none"
+            inputEl.value = userinputEl.textContent
+            form.appendChild(inputEl)
+        })
+    </script>
 </div>
 {% endblock %}

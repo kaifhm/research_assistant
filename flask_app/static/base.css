@@ -9,79 +9,188 @@ body {
     height: 100vh;
     display: flex;
     flex-direction: row;
+    overflow: hidden;
 }
 
 nav {
-    max-width: min(250px, 30%);
-    min-width: 250px;
-    background-color: #161617;
+    max-width: min(300px, 30%);
+    min-width: 300px;
+    background-color: #232323;
     color: #d2d2d2;
-    font-size: 11pt;
+    font-size: 1rem;
     overflow-x: clip;
+    padding: 0.3rem 0.4rem;
+}
+
+nav li, nav small {
+    list-style-type: none;
+    margin: 0.1rem 0;
+    padding: 0.4rem 0.4rem;
+    border-radius: 0.4rem;
+    width: 100%;
+}
+
+nav .current-message, nav li:hover, .chat a:hover {
+    background-color: #2e2e2e;
+}
+
+.chats {
+    overflow: visible;
+}
+
+.chat {
+    display: flex;
+    position: relative;
+    border-radius: 0.4rem;
+    overflow: visible;
+    margin: 0.1rem 0;
+}
+
+.chat a {
+    padding: 0.4rem 0.4rem;
+    width: 100%;
+    border-radius: inherit;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.chat a + span {
+    display: none;
+    position: relative;
+    cursor: pointer;
+    background-color: #2e2e2e;
+    position: absolute;
+    border-radius: 0.4rem;
+    top: 0;
+    height: 100%;
+    right: 0;
+    bottom: 0;
+    padding: 0 0.4rem;
+}
+
+.chat > a:hover + span, .chat > a + span:hover, .chat > a + span:focus-within {
+    display: flex;
+    align-items: center;
+    position: absolute;
+}
+
+.convo-popup {
+    display: none;
+}
+
+.chat > span:focus-within .convo-popup {
+    display: flex;
+    flex-direction: column;
+    position: absolute;
+    background: #262627;
+    border: 2px solid #424242;
+    pointer-events: all;
+    right: 0;
+    top: 115%;
+    opacity: 100%;
+    z-index: 1;
+    border-radius: 0.4em; 
+    padding: 0.2rem;
+}
+
+.chat .delete {
+    color: #f25353;
+}
+
+.chat .delete:hover {
+    color: #2e2e2e;
+    background-color: #f25353;
 }
 
 nav a {
-    color: #eeeeee;
+    color: #eee;
     text-decoration: none;
 }
 
+nav div {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
 nav small{
-    font-size: 9pt;
+    font-size: 0.8rem;
 }
 
 main {
     width: 100%;
     position: relative;
-}
-
-.chat-window {
-    height: 100%;
+    background-color: #262627;
+    overflow: scroll;
 }
 
 .messages-screen {
-    overflow-y: scroll;
-    padding: 0 calc((100% - max(600px, 30%))/2 + 2*3px);
+    padding: 0 calc((100% - max(650px, 30%))/2 + 2*0.2rem);
     height: 100%;
+    padding-bottom: 4%;
     left: 0;
     right: 0;
-    margin: 0 auto;
+    margin: 3% auto 0;
 }
 
 .message {
-    margin-bottom: 5px;
-    padding: 3px;
+    padding: 0.4rem 0.6rem;
+    color: #eeeeee;
+    line-height: 1.4;
 }
 
 .human-message {
     margin-left: auto;
     max-width: 80%;
     width: fit-content;
+    background: #131314;
+    color: #eeeeee;
+    border-radius: 0.4rem;
 }
 
 main form {
-    position: absolute;
+    position: sticky;
+    background-color: #191919;
+    border-radius: 0.4rem;
     height: fit-content;
     overflow: clip;
-    width:  max(600px, 30%);
-    margin: auto;
-    left: 0;
-    right: 0;
-    bottom: 25px;
+    width:  max(650px, 30%);
+    margin: 2rem auto;
+    top: 87%;
+    bottom: 3%;
 }
 
-form > div {
-    padding: 8px;
+
+form > div[contenteditable] {
+    background-color: transparent;
+    outline: none;
+    padding: 1rem;
     width:  100%;
     max-height: 400px;
     overflow: scroll;
-    border-radius: 10px;
-    background-color: white;
-    border: 2px solid lightgrey;
+    border: 2px none lightgrey;
     border-bottom: white;
-    border-bottom-left-radius: 0;
-    border-bottom-right-radius: 0;
+    color: #d2d2d2;
 }
 
-form > div[contenteditable] {
-  outline: none;
+form button {
+    background: #f25353;
+    border: none;
+    color: black;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 3rem;
+    margin-left: 92%;
+}
+
+#send-icon path {
+    transform: skew(-5deg, 5deg) rotateZ(0deg);
+}
+
+button[disabled] {
+    background: #c2c2c2;
+}
+
+button svg {
+    cursor: pointer;
 }

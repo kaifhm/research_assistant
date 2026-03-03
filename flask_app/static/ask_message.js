@@ -9,7 +9,7 @@ submitBtn.addEventListener("click", (x) => {
     let formData = new FormData(formEl)
     let user_message = userMessageEl.innerText
 
-    formData.append('user_message', userMessageEl)
+    formData.append('user_message', user_message)
     if (user_message === "") {
         return
     }

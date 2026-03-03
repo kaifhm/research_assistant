@@ -9,10 +9,10 @@
             {% endfor %}
         </div>
     </div>
-    <form action="{{ url_for('chat_post', convo_id=convo_id) }}" id="form" method="POST">
-        <div name="user_message" contenteditable="true" placeholder="What are you looking for?"></div>
-        <button type="submit" id="submit-button"> 📨 </button>
-    </form>
 </div>
+<form action="{{ url_for('chat_post', convo_id=convo_id) }}" id="form" method="POST">
+    <div name="user_message" contenteditable="true" placeholder="What are you looking for?"></div>
+    <button type="submit" id="submit-button"> {% include "send.svg" %} </button>
+</form>
 <script src="{{ url_for('static', filename='ask_message.js') }}"></script>
 {% endblock %}

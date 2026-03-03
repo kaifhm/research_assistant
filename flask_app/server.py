@@ -5,6 +5,7 @@ from flask import (
     request,
     redirect,
     Response,
+    session,
     stream_with_context,
 )
 from flask_app.db import db, Base, Conversation, Message
@@ -12,14 +13,12 @@ from sqlalchemy import create_engine
 
 from rag_agent import RAGAgent, TOOLS
 
-from uuid import UUID
 from dotenv import load_dotenv
 import os
 
 load_dotenv()
 
 engine = create_engine(os.environ['SQLALCHEMY_DATABASE_URI'], echo=True)
-# Base.metadata.drop_all(engine) # DEBUG
 Base.metadata.create_all(engine)
 
 app = Flask(__name__)
@@ -30,6 +29,10 @@ agent = RAGAgent(TOOLS)
 SYSTEM_PROMPT = os.getenv('SYSTEM_PROMPT', 'You are an assistant. Talk to and help the user')
 
 db.init_app(app)
+
+CURRENT_CONVO_ID = 'current_convo_id'
+
+app.jinja_env.filters['enumerate'] = enumerate
 
 @app.get('/')
 def home():
@@ -56,10 +59,8 @@ def home_post():
     ))
     convo.title = title.removeprefix('Title:').strip()
 
-    # convo.messages.extend([system_msg, message])
     db.session.add(convo)
     db.session.commit()
-
     return redirect(url_for("chat_get", convo_id=convo.id),
                     Response=Response(render_template("chat.html", title=title, # type: ignore
                                                       chats=chats,
@@ -68,19 +69,12 @@ def home_post():
 @app.get('/chat/<string:convo_id>/')
 def chat_get(convo_id):
     chats = db.session.execute(db.select(Conversation)).scalars()
-    try:
-        convo_id = UUID(convo_id)
-    except ValueError:
-        return f"No conversation with id {convo_id}", 404
-    db.get_or_404(Conversation, convo_id, description=f"No conversation with id {convo_id}")
-
+    convo = db.get_or_404(Conversation, convo_id, description=f"No conversation with id {convo_id}")
+    session[CURRENT_CONVO_ID] = convo_id
     messages = db.session.execute(db.select(Message)
                 .filter(Message.conversation_id == convo_id, Message.role.in_(['human', 'user', 'ai', 'assistant'])) \
-                    .order_by(Message.created_at.asc())).scalars() # Implement lazy loading messages
-    
-        # return render_template("chat.html", messages=messages, chats=chats, convo_id=convo_id, new_convo=True) # Stream 
-
-    return render_template("chat.html", messages=messages, chats=chats, convo_id=convo_id)
+                    .order_by(Message.created_at.asc())).scalars()
+    return render_template("chat.html", messages=messages, chats=chats, convo_id=convo_id, title=convo.title)
 
 
 @stream_with_context # type: ignore
@@ -116,3 +110,25 @@ def chat_post(convo_id):
     chat_messages = db.session.execute(db.select(Message).filter(Message.conversation_id == convo_id)).scalars().all()
     return Response(stream_ai_message(format_flask_messages(chat_messages), # pyright: ignore[reportArgumentType]
                                       convo_id=convo_id, last_message=message))
+
+@app.get('/chat/<string:convo_id>/delete')
+def chat_delete(convo_id):
+    # return to current chat if deleted chat is not current chat else return to home
+    convo = db.get_or_404(Conversation, convo_id, description=f"No conversation with id {convo_id}")
+    for message in convo.messages:
+        db.session.delete(message)
+    db.session.delete(convo)
+    db.session.commit()
+    if str(session.get(CURRENT_CONVO_ID)) == convo_id:
+        session[CURRENT_CONVO_ID] = None
+        return redirect(url_for('home'))
+    return redirect(url_for('chat_get', convo_id=convo_id))
+
+@app.post('/chat/<string:convo_id>/rename')
+def chat_rename(convo_id):
+    convo = db.get_or_404(Conversation, convo_id, description=f"No conversation with id {convo_id}")
+    new_chat_name = request.form['chat_name']
+    convo.title = new_chat_name
+    db.session.commit()
+    current_convo_id = str(session.get(CURRENT_CONVO_ID))
+    return redirect(url_for('chat_get', convo_id=current_convo_id))

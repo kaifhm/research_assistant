@@ -77,7 +77,7 @@ class RAGAgent:
         
 
     def chat(self):
-        print("\n🔬  Scientific RAG Agent ready. Type 'quit' to exit.")
+        print("\n🔬  Scientific RAG Agent ready. Type '/quit' to exit.")
         red, green, reset = "\033[31m", "\033[32m", "\033[0m"
         history: list[BaseMessage] = [SystemMessage(SYSTEM_PROMPT)]
         while True:
@@ -90,18 +90,18 @@ class RAGAgent:
                 continue
             if not user_input:
                 continue
-            if user_input.lower() in {"quit", "exit", "q"}:
+            if user_input.lower() in {"/quit", "/exit", "/q"}:
                 print("Goodbye!")
                 break
             print(f"\n{red}Assistant{reset}: ", sep='', end='')
             history.append(HumanMessage(user_input))
-            for message_chunk in self.ask(history):
-                print(message_chunk, sep='', end='', flush=True)
+            ai_message_chunks = []
+            try:
+                for message_chunk in self.ask(history):
+                    ai_message_chunks.append(message_chunk)
+                    print(message_chunk, sep='', end='', flush=True)
+            except KeyboardInterrupt:
+                history.pop()
+            else:
+                history.append(AIMessage("".join(ai_message_chunks)))
             print()
-
-
-if __name__ == "__main__":
-    from .tools import TOOLS
-
-    agent = RAGAgent(tools=TOOLS)
-    agent.chat()

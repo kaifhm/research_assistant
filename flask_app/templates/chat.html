@@ -1,5 +1,8 @@
 {% extends "base.html" %}
-{% block title %}{{ title }}{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='chat.css') }}">
+{% endblock %}
+{% block title %} {{ title }} {% endblock %}
 {% block main %}
 <div class="chat-window">
     <div class="messages-screen">
@@ -10,7 +13,7 @@
         </div>
     </div>
 </div>
-<form action="{{ url_for('chat_post', convo_id=convo_id) }}" id="form" method="POST">
+<form action="{{ url_for('chat_post', convo_id=convo_id) }}" id="user-message" method="POST">
     <div name="user_message" contenteditable="true" placeholder="What are you looking for?"></div>
     <button type="submit" id="submit-button"> {% include "send.svg" %} </button>
 </form>

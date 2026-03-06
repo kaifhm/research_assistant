@@ -50,16 +50,17 @@ async function fetchAndStream(url, formData, targetNode) {
     try {
         while (true) {
         const { done, value } = await reader.read();
-
+        
+        const chunk = decoder.decode(value, { stream: true });
+        targetNode.textContent += chunk
+        message += chunk
+        console.log(targetNode.textContent)
+        // not tested below block. was at line 53
         if (done) {
             console.log("Stream complete");
             break;
         }
 
-        const chunk = decoder.decode(value, { stream: true });
-        targetNode.textContent += chunk
-        message += chunk
-        console.log(targetNode.textContent)
         }
     } finally {
         reader.releaseLock();

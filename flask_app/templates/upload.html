@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block head %}
+<script src="https://unpkg.com/dropzone@5/dist/min/dropzone.min.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/dropzone@5/dist/min/dropzone.min.css" type="text/css"/>
+<link rel="stylesheet" href="{{url_for('static', filename='upload.css')}}">
+{% endblock %}
+{% block title %}{{ title if title else "Upload File | LLMChat" }}{% endblock %}
+{% block main %}
+
+<div class="file-upload dropzone" id="file-upload" >
+    
+</div>
+
+<script>
+  const dropzone = new Dropzone("div#file-upload", {
+    url: "/file-upload",
+    chunking: true,
+    chunkSize: 1*1024*1024,
+    paramName: "file",
+    retryChunks: true,
+    maxFilesize: 256,
+    createImageThumbnails: false,
+    acceptedFiles: "application/pdf,text/*",
+    });
+</script>
+
+{% endblock %}

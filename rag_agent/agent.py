@@ -36,6 +36,10 @@ class RAGAgent:
         self.llm = ChatOllama(model=MODEL).bind_tools(tools)
         logger.info("Agent set up successfully")
 
+    def change_model(self, model_name):
+        self.llm = ChatOllama(model=model_name)
+        logger.info(f'Agent changed to model={model_name}')
+
     def _run_tool(self, tool_calls) -> list[ToolMessage]:
         tool_results = []
         for tool in tool_calls:

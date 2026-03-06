@@ -1,8 +1,12 @@
-*, *::after, *::before {
+@import url('https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400..800;1,400..800&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap');
+
+*,
+*::after,
+*::before {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    font-family: Roboto;
+    font-family: Inter, Roboto;
 }
 
 body {
@@ -22,7 +26,8 @@ nav {
     padding: 0.3rem 0.4rem;
 }
 
-nav li, nav small {
+nav li,
+nav small {
     list-style-type: none;
     margin: 0.1rem 0;
     padding: 0.4rem 0.4rem;
@@ -30,7 +35,9 @@ nav li, nav small {
     width: 100%;
 }
 
-nav .current-message, nav li:hover, .chat a:hover {
+nav .current-chat,
+nav li:hover,
+.chat a:hover {
     background-color: #2e2e2e;
 }
 
@@ -54,7 +61,7 @@ nav .current-message, nav li:hover, .chat a:hover {
     text-overflow: ellipsis;
 }
 
-.chat a + span {
+.chat a+span {
     display: none;
     position: relative;
     cursor: pointer;
@@ -68,7 +75,9 @@ nav .current-message, nav li:hover, .chat a:hover {
     padding: 0 0.4rem;
 }
 
-.chat > a:hover + span, .chat > a + span:hover, .chat > a + span:focus-within {
+.chat>a:hover+span,
+.chat>a+span:hover,
+.chat>a+span:focus-within {
     display: flex;
     align-items: center;
     position: absolute;
@@ -76,21 +85,23 @@ nav .current-message, nav li:hover, .chat a:hover {
 
 .convo-popup {
     display: none;
-}
-
-.chat > span:focus-within .convo-popup {
-    display: flex;
-    flex-direction: column;
+    position: relative;
     position: absolute;
     background: #262627;
     border: 2px solid #424242;
     pointer-events: all;
+    width: 6rem;
     right: 0;
     top: 115%;
     opacity: 100%;
     z-index: 1;
-    border-radius: 0.4em; 
+    border-radius: 0.4em;
     padding: 0.2rem;
+}
+
+.chat>span:focus-within .convo-popup {
+    display: flex;
+    flex-direction: column;
 }
 
 .chat .delete {
@@ -100,6 +111,37 @@ nav .current-message, nav li:hover, .chat a:hover {
 .chat .delete:hover {
     color: #2e2e2e;
     background-color: #f25353;
+}
+
+.convo-popup a form[aria-label="rename"] {
+    display: none;
+    border-radius: 0.2rem;
+    position: absolute;
+    top: 0;
+    right: 0;
+    left: 0;
+    margin: 0.2rem 0;
+    height: 2.1rem;
+}
+
+.convo-popup a:focus-within form[aria-label="rename"] {
+    display: flex;
+    flex-direction: row;
+}
+
+form[aria-label="rename"] > * {
+    border: none;
+    outline: 2px solid #4242cf;
+    background-color: #2e2e2e;
+    color: #e2e2e2;
+    font-size: 1rem;
+    margin: 0 0.2rem;
+    border-radius: 0.4rem;
+    caret-color: #eee;
+}
+
+form[aria-label="rename"] button {
+    display: none;
 }
 
 nav a {
@@ -113,7 +155,7 @@ nav div {
     text-overflow: ellipsis;
 }
 
-nav small{
+nav small {
     font-size: 0.8rem;
 }
 
@@ -124,73 +166,29 @@ main {
     overflow: scroll;
 }
 
-.messages-screen {
-    padding: 0 calc((100% - max(650px, 30%))/2 + 2*0.2rem);
-    height: 100%;
-    padding-bottom: 4%;
-    left: 0;
-    right: 0;
-    margin: 3% auto 0;
-}
-
-.message {
-    padding: 0.4rem 0.6rem;
-    color: #eeeeee;
-    line-height: 1.4;
-}
-
-.human-message {
-    margin-left: auto;
-    max-width: 80%;
-    width: fit-content;
-    background: #131314;
-    color: #eeeeee;
-    border-radius: 0.4rem;
-}
-
-main form {
+main .header {
     position: sticky;
-    background-color: #191919;
-    border-radius: 0.4rem;
-    height: fit-content;
-    overflow: clip;
-    width:  max(650px, 30%);
-    margin: 2rem auto;
-    top: 87%;
-    bottom: 3%;
+    top: 0;
+    background-color: #262627;
+    box-shadow: 0 0 1.5rem 1rem #262627;
 }
 
-
-form > div[contenteditable] {
-    background-color: transparent;
-    outline: none;
-    padding: 1rem;
-    width:  100%;
-    max-height: 400px;
-    overflow: scroll;
-    border: 2px none lightgrey;
-    border-bottom: white;
-    color: #d2d2d2;
-}
-
-form button {
-    background: #f25353;
+main select {
+    background: #161617;
     border: none;
-    color: black;
-    width: 2rem;
-    height: 2rem;
-    border-radius: 3rem;
-    margin-left: 92%;
+    border-radius: 0.4rem;
+    padding: 0.4rem;
+    margin: 0.2rem;
+    color: #eee;
 }
 
-#send-icon path {
-    transform: skew(-5deg, 5deg) rotateZ(0deg);
-}
-
-button[disabled] {
-    background: #c2c2c2;
-}
-
-button svg {
-    cursor: pointer;
+.flash {
+    position: absolute;
+    top: 0;
+    right: 0;
+    margin: 0.8rem;
+    border-radius: 0.4rem;
+    background-color: #187f07;
+    color: #fff;
+    padding: 0.4rem;
 }

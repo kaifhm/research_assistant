@@ -144,7 +144,7 @@ form[aria-label="rename"] button {
     display: none;
 }
 
-nav a {
+nav a, .header a {
     color: #eee;
     text-decoration: none;
 }

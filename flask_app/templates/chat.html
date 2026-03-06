@@ -2,12 +2,12 @@
 {% block head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='chat.css') }}">
 {% endblock %}
-{% block title %} {{ title }} {% endblock %}
+{% block title %} {{ convo.title }} {% endblock %}
 {% block main %}
 <div class="chat-window">
     <div class="messages-screen">
         <div class="messages" id="messages">
-            {% for message in messages %}
+            {% for message in convo.messages %}
             <p class="message {{message.role}}-message">{{ message.content }}</p>
             {% endfor %}
         </div>

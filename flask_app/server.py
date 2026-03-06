@@ -8,30 +8,20 @@ from flask import (
     session,
     stream_with_context,
 )
-from flask_app.db import db, Base, Conversation, Message
-from sqlalchemy import create_engine
-
+from flask_app import db
 from rag_agent import RAGAgent, TOOLS
+from flask_app.db import Conversation, Message
 
-from dotenv import load_dotenv
 import os
 
-load_dotenv()
+agent = RAGAgent(TOOLS)
+SYSTEM_PROMPT = os.getenv('SYSTEM_PROMPT', 'You are an assistant. Talk to and help the user')
 
-engine = create_engine(os.environ['SQLALCHEMY_DATABASE_URI'], echo=True)
-Base.metadata.create_all(engine)
+CURRENT_CONVO = 'current_convo'
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ['FLASK_SECRET_KEY']
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ['SQLALCHEMY_DATABASE_URI']
-
-agent = RAGAgent(TOOLS)
-SYSTEM_PROMPT = os.getenv(
-    'SYSTEM_PROMPT', 'You are an assistant. Talk to and help the user')
-
-db.init_app(app)
-
-CURRENT_CONVO = 'current_convo'
 
 app.jinja_env.filters['enumerate'] = enumerate
 
@@ -50,13 +40,12 @@ OllamaModels.refresh_models()
 @app.get('/')
 def home():
     chats = db.session.execute(db.select(Conversation).order_by(Conversation.created_at.desc())).scalars()
-    return render_template("index.html", chats=chats, title='ChatLLM')
+    return render_template("index.html", chats=chats, title='ChatLLM', models=OllamaModels.models)
 
 
 @app.post('/')
 def home_post():
     user_message = request.form['user_message']
-    chats = db.session.execute(db.select(Conversation).order_by(Conversation.created_at.desc())).scalars()
     convo = Conversation()
     message = Message(content=user_message, role="human")
     convo.messages.append(message)
@@ -74,10 +63,7 @@ def home_post():
 
     db.session.add(convo)
     db.session.commit()
-    return redirect(url_for("chat_get", convo_id=convo.id),
-                    Response=Response(render_template("chat.html", title=title,  # type: ignore
-                                                      chats=chats,
-                                                      messages=[user_message])))
+    return redirect(url_for("chat_get", convo_id=convo.id))
 
 
 @app.get('/chat/<string:convo_id>/')
@@ -86,8 +72,7 @@ def chat_get(convo_id):
                           description=f"No conversation with id {convo_id}")
     chats = db.session.execute(db.select(Conversation).order_by(Conversation.created_at.desc())).scalars()
     session[CURRENT_CONVO] = convo
-    messages = convo.messages
-    return render_template("chat.html", messages=messages, chats=chats, convo_id=convo.id, title=convo.title)
+    return render_template("chat.html", chats=chats, convo=convo, models=OllamaModels.models)
 
 
 @stream_with_context  # type: ignore
@@ -133,22 +118,25 @@ def chat_post(convo_id):
 def upload():
     # Cache chats and use here. Don't keep querying the same thing.
     chats = db.session.execute(db.select(Conversation).order_by(Conversation.created_at.desc())).scalars()
-    return render_template("upload.html", chats=chats, title="ChatLLM | Upload files")
+    return render_template("upload.html", chats=chats, title="ChatLLM | Upload files", convo=Conversation())
 
 
 @app.post('/file-upload')
 def file_upload():
     file = request.files['file']
-    with open(str(file.filename), 'ab') as wfile:
+    filename = request.form['dzuuid']
+    expected_filezie = request.form['dztotalfilesize']
+    with open(filename, 'ab') as wfile:
         if wfile.tell() > 256 * 1048576:
-            return "File too big", 403
-        for chunk in file.stream:
-            try:
-                wfile.write(chunk)
-            except (OSError, Exception) as e:
-                print(e)
-                return "An exception occured. Could not write file", 500
-
+            return "File too big", 413
+        elif wfile.tell() > int(expected_filezie):
+            return f"File is bigger than expected. Expected {expected_filezie}b. Is {wfile.tell()}b already", 500
+        try:
+            file.save(wfile)
+        except (OSError, Exception) as e:
+            print(e)
+            os.remove(filename)
+            return "An exception occured. Could not write file", 500
     return "Uploaded"
 
 
@@ -180,3 +168,9 @@ def change_model(model_name):
         return "No such model", 404
     agent.change_model(model_name)
     return f"Model changed to {model_name}"
+
+
+@app.get('/refresh-models')
+def refresh_models():
+    OllamaModels.refresh_models()
+    return redirect(request.referrer)

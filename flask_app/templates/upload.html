@@ -15,7 +15,7 @@
   const dropzone = new Dropzone("div#file-upload", {
     url: "/file-upload",
     chunking: true,
-    chunkSize: 1*1024*1024,
+    chunkSize: 5*1024*1024,
     paramName: "file",
     retryChunks: true,
     maxFilesize: 256,

@@ -9,9 +9,10 @@ from flask import (
     stream_with_context,
 )
 from flask_app import db
-from rag_agent import RAGAgent, TOOLS
+from rag_agent import RAGAgent, TOOLS, ingest_files
 from flask_app.db import Conversation, Message
 
+from pathlib import Path
 import os
 
 agent = RAGAgent(TOOLS)
@@ -123,20 +124,24 @@ def upload():
 
 @app.post('/file-upload')
 def file_upload():
-    file = request.files['file']
-    filename = request.form['dzuuid']
-    expected_filezie = request.form['dztotalfilesize']
-    with open(filename, 'ab') as wfile:
+    upload_file = request.files['file']
+    upload_filename = request.form['dzuuid']
+    expected_filezie = int(request.form['dztotalfilesize'])
+    with open(upload_filename, 'ab') as wfile:
         if wfile.tell() > 256 * 1048576:
             return "File too big", 413
-        elif wfile.tell() > int(expected_filezie):
+        elif wfile.tell() > expected_filezie:
             return f"File is bigger than expected. Expected {expected_filezie}b. Is {wfile.tell()}b already", 500
         try:
-            file.save(wfile)
+            upload_file.save(wfile)
         except (OSError, Exception) as e:
             print(e)
-            os.remove(filename)
+            os.remove(upload_filename)
             return "An exception occured. Could not write file", 500
+        if wfile.tell() == expected_filezie:
+            os.rename(upload_filename, upload_file.filename) # type: ignore
+            ingest_files([upload_filename], 'research_docs')
+            return "Uploaded and ingested"
     return "Uploaded"
 
 

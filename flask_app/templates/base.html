@@ -21,7 +21,7 @@
         <small>Chats</small>
         <div class="chats">
             {% for i, chat in chats | enumerate %}
-            <div class="chat{{' current-chat focused' if chat.id == convo.id else ''}}">
+            <div class="chat{{' current-chat focused' if convo and chat.id == convo.id else ''}}">
                 <a href="{{ url_for('chat_get', convo_id=chat.id) }}">
                     <div>{{ chat.title if chat.title else chat.id }}</div>
                 </a>

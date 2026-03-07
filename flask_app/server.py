@@ -5,7 +5,6 @@ from flask import (
     request,
     redirect,
     Response,
-    session,
     stream_with_context,
 )
 from flask_app import db
@@ -18,7 +17,6 @@ import os
 agent = RAGAgent(TOOLS)
 SYSTEM_PROMPT = os.getenv('SYSTEM_PROMPT', 'You are an assistant. Talk to and help the user')
 
-CURRENT_CONVO = 'current_convo'
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ['FLASK_SECRET_KEY']
@@ -72,7 +70,6 @@ def chat_get(convo_id):
     convo = db.get_or_404(Conversation, convo_id,
                           description=f"No conversation with id {convo_id}")
     chats = db.session.execute(db.select(Conversation).order_by(Conversation.created_at.desc())).scalars()
-    session[CURRENT_CONVO] = convo
     return render_template("chat.html", chats=chats, convo=convo, models=OllamaModels.models)
 
 
@@ -80,7 +77,7 @@ def chat_get(convo_id):
 def stream_ai_message(messages: list[dict], convo_id: str, last_message: Message):
 
     captured_data = []
-
+    messages.insert(0, {'role': 'system', 'content': SYSTEM_PROMPT})
     try:
         for message_chunk in agent.ask(messages): # pyright: ignore[reportArgumentType]
             captured_data.append(message_chunk)
@@ -129,8 +126,10 @@ def file_upload():
     expected_filezie = int(request.form['dztotalfilesize'])
     with open(upload_filename, 'ab') as wfile:
         if wfile.tell() > 256 * 1048576:
+            os.remove(upload_filename)
             return "File too big", 413
         elif wfile.tell() > expected_filezie:
+            os.remove(upload_filename)
             return f"File is bigger than expected. Expected {expected_filezie}b. Is {wfile.tell()}b already", 500
         try:
             upload_file.save(wfile)
@@ -151,8 +150,7 @@ def chat_delete(convo_id):
                           description=f"No conversation with id {convo_id}")
     db.session.delete(convo)
     db.session.commit()
-    if session.get(CURRENT_CONVO)['id'] == str(convo.id):  # type: ignore
-        session[CURRENT_CONVO] = None
+    if request.url.removeprefix(request.referrer) == 'delete':
         return redirect(url_for('home'))
     return redirect(request.referrer)
 
@@ -164,7 +162,7 @@ def chat_rename(convo_id):
     new_chat_name = request.form['chat_name']
     convo.title = new_chat_name
     db.session.commit()
-    return redirect(request.referrer)  # type: ignore
+    return redirect(request.referrer)
 
 
 @app.get('/change-model/<string:model_name>')

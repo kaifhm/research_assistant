@@ -1,5 +1,5 @@
 const messagesEl = document.getElementById("messages")
-const formEl = document.getElementById("form")
+const formEl = document.getElementById("user-message")
 const userMessageEl = document.querySelector('div[name="user_message"]')
 const submitBtn = document.getElementById("submit-button")
 
@@ -50,16 +50,13 @@ async function fetchAndStream(url, formData, targetNode) {
     try {
         while (true) {
         const { done, value } = await reader.read();
-        
-        const chunk = decoder.decode(value, { stream: true });
-        targetNode.textContent += chunk
-        message += chunk
-        console.log(targetNode.textContent)
-        // not tested below block. was at line 53
         if (done) {
             console.log("Stream complete");
             break;
         }
+        const chunk = decoder.decode(value, { stream: true });
+        targetNode.textContent += chunk
+        message += chunk
 
         }
     } finally {

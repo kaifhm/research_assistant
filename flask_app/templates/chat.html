@@ -13,7 +13,7 @@
         </div>
     </div>
 </div>
-<form action="{{ url_for('chat_post', convo_id=convo_id) }}" id="user-message" method="POST">
+<form action="{{ url_for('chat_post', convo_id=convo.id) }}" id="user-message" method="POST">
     <div name="user_message" contenteditable="true" placeholder="What are you looking for?"></div>
     <button type="submit" id="submit-button"> {% include "send.svg" %} </button>
 </form>

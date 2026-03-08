@@ -12,6 +12,7 @@
     font-size: 1.1rem;
     color: #eee;
     line-height: 1.6;
+    white-space: pre-wrap;
 }
 
 .human-message {

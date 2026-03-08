@@ -1,4 +1,4 @@
-# LLMChat | A local service for Ollama
+# LLMChat | A frontend for Ollama with tool calling
 
 A fully local **Retrieval-Augmented Generation (RAG)** research assistant with **tool calling** support. Ask questions about your documents and get intelligent, context-aware answers — all running on your own machine, with no data sent to the cloud.
 

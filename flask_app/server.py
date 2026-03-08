@@ -54,8 +54,8 @@ def home_post():
             {'role': 'system', 'content': (f'<user_message> {user_message} </user_message>. '
                                            'This is the first message in a new conversation. '
                                            'Generate a title for this conversation. Do not use '
-                                           'any tools. Keep the title short and simple. '
-                                           'Do not say Title')},
+                                           'any tools. Give me a title that is short and simple.'
+                                           'Do not use JSON. Do not say Title.')},
         ]
     ))
     convo.title = title.removeprefix('Title:').strip()
@@ -74,7 +74,7 @@ def chat_get(convo_id):
 
 
 @stream_with_context  # type: ignore
-def stream_ai_message(messages: list[dict], convo_id: str, last_message: Message):
+def stream_ai_message(messages: list[dict], convo_id: str, last_message: Message | None):
 
     captured_data = []
     messages.insert(0, {'role': 'system', 'content': SYSTEM_PROMPT})
@@ -83,10 +83,11 @@ def stream_ai_message(messages: list[dict], convo_id: str, last_message: Message
             captured_data.append(message_chunk)
             yield message_chunk
     except (BrokenPipeError, IOError, GeneratorExit):
-        db.session.delete(last_message)
-        db.session.commit()
+        if last_message:
+            db.session.delete(last_message)
+            db.session.commit()
         # log message delete
-        return ""
+        return "Failed to stream content", 500
 
     full_message = "".join(captured_data)
     ai_message = Message(content=full_message, role="ai",
@@ -101,14 +102,17 @@ def format_flask_messages(messages: list[Message]) -> list[dict]:
 
 @app.post('/chat/<string:convo_id>/')
 def chat_post(convo_id):
-    user_message = request.form['user_message']
-    message = Message(content=user_message, role="human",
-                      conversation_id=convo_id)
-    db.session.add(message)
-    db.session.commit()
-    chat_messages = db.session.execute(db.select(Message).filter(
-        Message.conversation_id == convo_id)).scalars()
-    return Response(stream_ai_message(format_flask_messages(chat_messages),  # pyright: ignore[reportArgumentType]
+    user_message = request.form.get('user_message')
+    message = None
+    if user_message:
+        message = Message(content=user_message, role="human",
+                          conversation_id=convo_id)
+        db.session.add(message)
+        db.session.commit()
+    convo = db.get_or_404(Conversation, convo_id)
+    if not user_message and len(convo.messages) != 1:
+        return "Forbidden", 403
+    return Response(stream_ai_message(format_flask_messages(convo.messages),  # pyright: ignore[reportArgumentType]
                                       convo_id=convo_id, last_message=message))
 
 

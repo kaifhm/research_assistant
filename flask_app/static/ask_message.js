@@ -5,14 +5,18 @@ const submitBtn = document.getElementById("submit-button")
 
 submitBtn.addEventListener("click", (x) => {
     x.preventDefault()
-    
+    let user_message = userMessageEl.innerText
+    if (user_message === "") {
+        return
+    }
+    prepareForm()
+})
+
+async function prepareForm() {
     let formData = new FormData(formEl)
     let user_message = userMessageEl.innerText
 
     formData.append('user_message', user_message)
-    if (user_message === "") {
-        return
-    }
     
     userMessageEl.innerText = ""
     
@@ -28,8 +32,12 @@ submitBtn.addEventListener("click", (x) => {
     newMessageNode.classList.add("ai-message")
     messagesEl.appendChild(newMessageNode)
 
-    fetchAndStream(formEl.action, formData, newMessageNode)
-})
+    try {
+        await fetchAndStream(formEl.action, formData, newMessageNode)
+    } finally {
+        submitBtn.disabled = false
+    }
+}
 
 async function fetchAndStream(url, formData, targetNode) {
     const response = await fetch(url, {
@@ -49,19 +57,22 @@ async function fetchAndStream(url, formData, targetNode) {
 
     try {
         while (true) {
-        const { done, value } = await reader.read();
-        if (done) {
-            console.log("Stream complete");
-            break;
-        }
-        const chunk = decoder.decode(value, { stream: true });
-        targetNode.textContent += chunk
-        message += chunk
-
+            const { done, value } = await reader.read();
+            if (done) {
+                console.log("Stream complete");
+                break;
+            }
+            const chunk = decoder.decode(value, { stream: true });
+            targetNode.textContent += chunk
+            message += chunk
         }
     } finally {
         reader.releaseLock();
-        submitBtn.disabled = false
     }
 
+}
+
+if (document.getElementById('messages').childElementCount === 1) {
+    prepareForm()
+    messagesEl.children[1].remove()
 }

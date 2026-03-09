@@ -1,4 +1,4 @@
-# LLMChat | A frontend for Ollama with tool calling
+# LLMChat — Local Agentic RAG with Tool Calling
 
 A fully local **Retrieval-Augmented Generation (RAG)** research assistant with **tool calling** support. Ask questions about your documents and get intelligent, context-aware answers — all running on your own machine, with no data sent to the cloud.
 
@@ -99,7 +99,7 @@ python rag_agent/database.py -h
 
 ## Defining new tools
 
-You can define new tools for the LLM writing new functions in the `rag_agent.tools.py` file and adding the function object to `TOOLS` list. There are already examples in the file on how to write a tool function. Checkout [LangChain tools](https://docs.langchain.com/oss/python/langchain/tools) for more information. You will have to restart the server if to see the updates.
+You can define new tools for the LLM writing new functions in the `tools` package and adding the callable to `TOOLS` list in `tools/__init__.py`. There are already examples in the file on how to write a tool function. Checkout [LangChain tools](https://docs.langchain.com/oss/python/langchain/tools) for more information. You will have to restart the server to see the updates.
 
 ---
 

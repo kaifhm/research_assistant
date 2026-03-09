@@ -7,11 +7,12 @@ from flask import (
     Response,
     stream_with_context,
 )
+from werkzeug.utils import secure_filename
 from flask_app import db
-from rag_agent import RAGAgent, TOOLS, ingest_files
+from rag_agent import RAGAgent, ingest_files
+from tools import TOOLS
 from flask_app.db import Conversation, Message
 
-from pathlib import Path
 import os
 
 agent = RAGAgent(TOOLS)
@@ -126,13 +127,13 @@ def upload():
 @app.post('/file-upload')
 def file_upload():
     upload_file = request.files['file']
-    upload_filename = request.form['dzuuid']
-    expected_filezie = int(request.form['dztotalfilesize'])
+    upload_filename = request.form.get('dzuuid', f"{secure_filename(upload_file.filename)}.{upload_file.filename.rsplit('.', 1)[-1]}")
+    expected_filezie = int(request.form.get('dztotalfilesize', -1))
     with open(upload_filename, 'ab') as wfile:
-        if wfile.tell() > 256 * 1048576:
+        if wfile.tell() > 1048576:
             os.remove(upload_filename)
             return "File too big", 413
-        elif wfile.tell() > expected_filezie:
+        elif expected_filezie != -1 and wfile.tell() > expected_filezie:
             os.remove(upload_filename)
             return f"File is bigger than expected. Expected {expected_filezie}b. Is {wfile.tell()}b already", 500
         try:
@@ -141,9 +142,14 @@ def file_upload():
             print(e)
             os.remove(upload_filename)
             return "An exception occured. Could not write file", 500
-        if wfile.tell() == expected_filezie:
-            os.rename(upload_filename, upload_file.filename) # type: ignore
-            ingest_files([upload_filename], 'research_docs')
+        if expected_filezie == -1 or wfile.tell() == expected_filezie \
+            and int(request.form['dzchunkindex']) == (int(request.form['dztotalchunkcount']) - 1):
+            try:
+                ingest_files([upload_filename], 'research_docs')
+            except Exception as e:
+                print(e)
+                os.remove(upload_filename)
+                return str(e), 413
             return "Uploaded and ingested"
     return "Uploaded"
 

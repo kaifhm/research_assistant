@@ -2,6 +2,7 @@ import chromadb
 from chromadb.config import Settings
 from chromadb.utils.embedding_functions.onnx_mini_lm_l6_v2 import ONNXMiniLM_L6_V2
 from langchain.tools import tool
+from rag_agent.database import get_chroma_collection
 
 from dotenv import load_dotenv
 import os
@@ -12,7 +13,7 @@ load_dotenv()
 CHROMA_PATH = os.environ['CHROMA_PATH']
 COLLECTION = os.environ['COLLECTION']
 
-### Define tools
+get_chroma_collection(COLLECTION) # So that chromaDB gets instantiated if not yet.
 
 class Retriever:
     def __init__(self, collection_name: str):
@@ -75,10 +76,3 @@ def make_retriever():
     return retrieve_documents
 
 doc_search = make_retriever()
-
-# ============= ALL TOOLS LIST =============
-
-TOOLS = [
-    doc_search,
-    # search_web,
-]
